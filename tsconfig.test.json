@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"noEmit": false, "module": "commonjs", "moduleResolution": "node", "target": "ES2020", "outDir": ".test-build", "incremental": false, "isolatedModules": false, "jsx": "react-jsx", "plugins": []},
+  "include": ["tests/**/*.ts", "lib/nutrition/**/*.ts", "lib/recipes/**/*.ts", "lib/exercises/**/*.ts", "lib/catalog.ts", "lib/types.ts", "lib/normalize.ts", "lib/restrictions.ts", "lib/stateKeys.ts", "lib/time.ts"],
+  "exclude": ["node_modules", ".next", ".test-build"]
+}

@@ -1,63 +1,39 @@
 'use client';
 import {useState} from 'react';
-import {ArrowLeftRight,Check,Cloud,Download,LogOut,Moon,PlusSquare,RotateCcw,Share,ShieldCheck,Smartphone,Sun,SunMoon,Trash2} from 'lucide-react';
+import {ArrowLeftRight,ArrowRight,Check,Cloud,Download,Dumbbell,LogOut,Moon,PlusSquare,Salad,Share,ShieldCheck,Smartphone,Sun,SunMoon,Trash2} from 'lucide-react';
 import type {SyncMode} from '@/hooks/useAppState';
 import type {Theme} from '@/hooks/usePrefs';
 import {AVATARS,COLORS,type ColorKey} from '@/lib/catalog';
-import {DEFAULT_PROFILES} from '@/lib/normalize';
-import {PEOPLE,type PersonId,type Profile,type Profiles} from '@/lib/types';
-import {Avatar,Segmented,TagInput} from './ui';
-
-const GOALS=['Recuperação de massa muscular','Alimentação equilibrada','Evolução física','Mais energia no dia','Comer mais legumes','Praticidade na rotina'];
+import type {PersonKey,PublicProfile} from '@/lib/types';
+import {Avatar,Segmented,Switch} from './ui';
 
 type Props={
- profiles:Profiles,active:PersonId,setProfile:(id:PersonId,fn:(p:Profile)=>Profile)=>void,onSwitch:()=>void,onLogout:()=>void,
- askOnOpen:boolean,setAskOnOpen:(v:boolean)=>void,theme:Theme,setTheme:(t:Theme)=>void,
- sync:SyncMode,privacyReport:string[],counts:{saved:number,plan:number,shopping:number},
- clear:(what:'saved'|'plan'|'shopping')=>void,eraseAll:()=>Promise<void>,
+ profile:PublicProfile,setProfile:(fn:(p:PublicProfile)=>PublicProfile)=>void,onSwitch:()=>void,onLogout:()=>void,
+ onDiet:()=>void,onSafety:()=>void,askOnOpen:boolean,setAskOnOpen:(v:boolean)=>void,theme:Theme,setTheme:(t:Theme)=>void,
+ sync:SyncMode,syncReason:string,privacyReport:string[],counts:Record<'saved'|'later'|'plan'|'shopping'|'sessions',number>,
+ clear:(what:Exclude<PersonKey,'diet'|'exercise'>)=>void,eraseMine:()=>Promise<void>,
 };
 
-function Switch({checked,onChange,label,hint}:{checked:boolean,onChange:(v:boolean)=>void,label:string,hint?:string}){
- return <button className="switch-row" role="switch" aria-checked={checked} onClick={()=>onChange(!checked)}><span><b>{label}</b>{hint&&<small>{hint}</small>}</span><span className={`switch ${checked?'on':''}`} aria-hidden><i/></span></button>;
-}
-
 export function ProfileView(p:Props){
- const [editing,setEditing]=useState<PersonId>(p.active),[confirmAll,setConfirmAll]=useState(false),[msg,setMsg]=useState('');
- const prof=p.profiles[editing];
- const set=<K extends keyof Profile>(k:K,v:Profile[K])=>p.setProfile(editing,x=>({...x,[k]:v}));
+ const [confirmAll,setConfirmAll]=useState(false),[msg,setMsg]=useState('');
  const done=(m:string)=>{setMsg(m);setTimeout(()=>setMsg(''),2500)};
+ const set=<K extends keyof PublicProfile>(k:K,v:PublicProfile[K])=>p.setProfile(x=>({...x,[k]:v}));
+ const rows:[Exclude<PersonKey,'diet'|'exercise'>,string,string][]=[['saved','Favoritas','receitas'],['later','Para depois','receitas'],['plan','Cardápio da semana','refeições'],['shopping','Lista de compras','itens'],['sessions','Treinos registrados','treinos']];
  return <div className="view">
-  <section className="me-card" style={{['--card' as string]:COLORS[p.profiles[p.active].color].main}}>
-   <Avatar profile={p.profiles[p.active]} size={64}/>
-   <div><small>Perfil ativo neste aparelho</small><h1>{p.profiles[p.active].name}</h1></div>
+  <section className="me-card" style={{['--card' as string]:COLORS[p.profile.color].main}}>
+   <Avatar profile={p.profile} size={64}/>
+   <div><small>Perfil ativo neste aparelho</small><h1>{p.profile.name}</h1></div>
    <div className="me-actions"><button className="btn soft sm" onClick={p.onSwitch}><ArrowLeftRight size={16}/>Trocar perfil</button><button className="btn ghost sm" onClick={p.onLogout}><LogOut size={16}/>Sair</button></div>
   </section>
 
-  <section className="panel-sec"><h2 className="sec-title">Editar perfil</h2>
-   <Segmented label="Perfil em edição" value={editing} onChange={setEditing} options={PEOPLE.map(id=>({value:id,label:p.profiles[id].name||id}))}/>
+  <button className="list-link" onClick={p.onDiet}><Salad size={20}/><span><b>Minhas preferências alimentares</b><small>Objetivo, gostos, restrições e rotina</small></span><ArrowRight size={18}/></button>
+  <button className="list-link" onClick={p.onSafety}><Dumbbell size={20}/><span><b>Segurança para exercícios</b><small>Liberação, limitações e equipamentos</small></span><ArrowRight size={18}/></button>
+
+  <section className="panel-sec"><h2 className="sec-title">Aparência do perfil</h2>
    <div className="form">
-    <label className="field"><span>Nome</span><input value={prof.name} maxLength={40} onChange={e=>set('name',e.target.value)} autoComplete="off"/></label>
-    <div className="field"><span>Avatar</span><div className="avatar-grid" role="radiogroup" aria-label="Avatar">{AVATARS.map(a=><button key={a} role="radio" aria-checked={prof.avatar===a} className={prof.avatar===a?'on':''} onClick={()=>set('avatar',a)}><span aria-hidden>{a}</span></button>)}</div></div>
-    <div className="field"><span>Cor</span><div className="swatches" role="radiogroup" aria-label="Cor do perfil">{(Object.keys(COLORS) as ColorKey[]).map(c=><button key={c} role="radio" aria-checked={prof.color===c} aria-label={COLORS[c].label} className={prof.color===c?'on':''} style={{background:COLORS[c].main}} onClick={()=>set('color',c)}>{prof.color===c&&<Check size={16}/>}</button>)}</div></div>
-    <label className="field"><span>Objetivo alimentar <small>do seu jeito, sem metas de peso</small></span><textarea rows={2} maxLength={160} value={prof.goal} onChange={e=>set('goal',e.target.value)} placeholder="Ex.: comer de forma equilibrada e ter mais energia"/></label>
-    <div className="chip-row">{GOALS.filter(g=>!prof.goal.includes(g)).map(g=><button key={g} className="chip ghost" onClick={()=>set('goal',(prof.goal?`${prof.goal.replace(/[.\s]+$/,'')}, `:'')+g.toLowerCase().replace(/^./,c=>c.toUpperCase()).slice(0,160))}>+ {g}</button>)}</div>
-    <TagInput label="Alimentos preferidos" values={prof.likes} onChange={v=>set('likes',v)} suggestions={['Frango','Ovos','Arroz e feijão','Massas','Peixe','Frutas','Saladas']}/>
-    <TagInput label="Alimentos que prefere evitar" hint="preferência, sem rigor" values={prof.avoids} onChange={v=>set('avoids',v)} suggestions={['Cebola crua','Coentro','Pimenta','Fritura']}/>
-    <TagInput label="Intolerâncias" hint="evitar ou usar versão sem" values={prof.intolerances} onChange={v=>set('intolerances',v)} suggestions={['Lactose','Frutose']}/>
-    <TagInput label="Alergias" hint="excluídas por completo" values={prof.allergies} onChange={v=>set('allergies',v)} suggestions={['Amendoim','Castanhas','Frutos do mar','Ovo','Leite','Soja']}/>
-    <Switch checked={prof.celiac} onChange={v=>set('celiac',v)} label="Doença celíaca" hint="Zero glúten e cuidado com contaminação cruzada"/>
-    <div className="field"><span>Tempo para cozinhar</span><Segmented label="Tempo para cozinhar" value={prof.cookTime} onChange={v=>set('cookTime',v)} options={[{value:'rapido',label:'Pouco'},{value:'medio',label:'Médio'},{value:'sem_pressa',label:'Sem pressa'}]}/></div>
-    <div className="field"><span>Refeições por dia</span><Segmented label="Refeições por dia" value={prof.meals} onChange={v=>set('meals',v)} options={['2','3','4','5+'].map(v=>({value:v as Profile['meals'],label:v}))}/></div>
-    <div className="field"><span>Orçamento</span><Segmented label="Orçamento" value={prof.budget} onChange={v=>set('budget',v)} options={[{value:'economico',label:'Econômico'},{value:'moderado',label:'Moderado'},{value:'livre',label:'Livre'}]}/></div>
-    <div className="field"><span>Estilo de refeição</span><Segmented label="Estilo" value={prof.style} onChange={v=>set('style',v)} options={[{value:'simples',label:'Simples'},{value:'elaborado',label:'Elaborado'}]}/></div>
-    <details className="private-box"><summary><ShieldCheck size={17}/>Dados corporais (opcional e privado)</summary>
-     <p className="fineprint">Só são usados nas sugestões se você ligar a opção abaixo. Nunca viram metas de peso ou calorias.</p>
-     <div className="row-2"><label className="field"><span>Peso</span><input inputMode="decimal" value={prof.body.weight} maxLength={10} onChange={e=>set('body',{...prof.body,weight:e.target.value})} placeholder="kg"/></label><label className="field"><span>Altura</span><input inputMode="decimal" value={prof.body.height} maxLength={10} onChange={e=>set('body',{...prof.body,height:e.target.value})} placeholder="cm"/></label></div>
-     <label className="field"><span>Atividade física</span><input value={prof.body.activity} maxLength={80} onChange={e=>set('body',{...prof.body,activity:e.target.value})} placeholder="Ex.: musculação 3x por semana"/></label>
-     <Switch checked={prof.useBody} onChange={v=>set('useBody',v)} label="Usar para ajustar porções" hint="Desligado: esses dados não saem do app"/>
-    </details>
-    <label className="field"><span>Observações para as sugestões <small>opcional</small></span><textarea rows={2} maxLength={400} value={prof.notes} onChange={e=>set('notes',e.target.value)} placeholder="Ex.: gosto de comida bem temperada"/></label>
-    <button className="btn ghost" onClick={()=>{if(confirm(`Apagar os dados do perfil de ${prof.name} e voltar ao padrão?`)){p.setProfile(editing,()=>DEFAULT_PROFILES[editing]);done('Perfil redefinido.')}}}><RotateCcw size={16}/>Apagar dados deste perfil</button>
+    <label className="field"><span>Nome</span><input value={p.profile.name} maxLength={40} onChange={e=>set('name',e.target.value)} autoComplete="off"/></label>
+    <div className="field"><span>Avatar</span><div className="avatar-grid" role="radiogroup" aria-label="Avatar">{AVATARS.map(a=><button key={a} role="radio" aria-checked={p.profile.avatar===a} className={p.profile.avatar===a?'on':''} onClick={()=>set('avatar',a)}><span aria-hidden>{a}</span></button>)}</div></div>
+    <div className="field"><span>Cor</span><div className="swatches" role="radiogroup" aria-label="Cor do perfil">{(Object.keys(COLORS) as ColorKey[]).map(c=><button key={c} role="radio" aria-checked={p.profile.color===c} aria-label={COLORS[c].label} className={p.profile.color===c?'on':''} style={{background:COLORS[c].main}} onClick={()=>set('color',c)}>{p.profile.color===c&&<Check size={16}/>}</button>)}</div></div>
    </div>
   </section>
 
@@ -76,17 +52,13 @@ export function ProfileView(p:Props){
    <p className="fineprint">É um app web (PWA): não tem notificações nativas nem acesso a recursos exclusivos da App Store.</p>
   </section>
 
-  <section className="panel-sec"><h2 className="sec-title"><ShieldCheck size={18}/>Privacidade e dados</h2>
-   <p className="store-line">{p.sync==='nuvem'?<><Cloud size={16}/>Perfis, favoritas, plano e lista ficam no banco do app (Neon) e aparecem nos aparelhos de vocês.</>:<><Smartphone size={16}/>Seus dados estão salvos só neste aparelho.</>}</p>
-   {p.privacyReport.length>0&&<div className="report"><b>Removido automaticamente na atualização:</b><ul>{p.privacyReport.map(r=><li key={r}>{r}</li>)}</ul></div>}
-   <ul className="data-list">
-    <li><span>Favoritas<small>{p.counts.saved} receitas</small></span><button className="btn ghost sm" disabled={!p.counts.saved} onClick={()=>{if(confirm('Apagar todas as favoritas? Some dos dois aparelhos.')){p.clear('saved');done('Favoritas apagadas.')}}}><Trash2 size={15}/>Apagar</button></li>
-    <li><span>Plano da semana<small>{p.counts.plan} refeições</small></span><button className="btn ghost sm" disabled={!p.counts.plan} onClick={()=>{if(confirm('Limpar o plano da semana?')){p.clear('plan');done('Plano limpo.')}}}><Trash2 size={15}/>Limpar</button></li>
-    <li><span>Lista de compras<small>{p.counts.shopping} itens</small></span><button className="btn ghost sm" disabled={!p.counts.shopping} onClick={()=>{if(confirm('Limpar a lista de compras?')){p.clear('shopping');done('Lista limpa.')}}}><Trash2 size={15}/>Limpar</button></li>
-   </ul>
+  <section className="panel-sec"><h2 className="sec-title"><ShieldCheck size={18}/>Privacidade e dados de {p.profile.name}</h2>
+   <p className="store-line">{p.sync==='nuvem'?<><Cloud size={16}/>Seus dados ficam no banco do app, separados por pessoa. O outro perfil não vê seus dados; no modo casal, só as preferências alimentares são combinadas.</>:<><Smartphone size={16}/>Seus dados estão salvos só neste aparelho.{p.syncReason&&` ${p.syncReason}`}</>}</p>
+   {p.privacyReport.length>0&&<div className="report"><b>Removido automaticamente nas atualizações:</b><ul>{p.privacyReport.map(r=><li key={r}>{r}</li>)}</ul></div>}
+   <ul className="data-list">{rows.map(([k,label,unit])=><li key={k}><span>{label}<small>{p.counts[k]} {unit}</small></span><button className="btn ghost sm" disabled={!p.counts[k]} onClick={()=>{if(confirm(`Apagar ${label.toLowerCase()} de ${p.profile.name}?`)){p.clear(k);done(`${label} apagado.`)}}}><Trash2 size={15}/>Apagar</button></li>)}</ul>
    <p className="fineprint">Fotos e áudios são enviados à IA (OpenAI) só quando você toca no botão, e não ficam salvos no app. Pela política da OpenAI, dados enviados à API podem ser retidos por até 30 dias para segurança, sem uso em treinamento.</p>
-   {!confirmAll?<button className="btn danger full" onClick={()=>setConfirmAll(true)}><Trash2 size={17}/>Apagar todos os dados do app</button>:
-    <div className="confirm-box" role="alertdialog" aria-label="Confirmar exclusão"><p>Isso apaga perfis, favoritas, plano e lista{p.sync==='nuvem'?' do banco e de todos os aparelhos':' deste aparelho'}. Não dá para desfazer.</p><div className="row-actions"><button className="btn ghost" onClick={()=>setConfirmAll(false)}>Cancelar</button><button className="btn danger" onClick={async()=>{try{await p.eraseAll();setConfirmAll(false);done('Tudo apagado.')}catch(e){done(e instanceof Error?e.message:'Não consegui apagar.')}}}>Apagar tudo</button></div></div>}
+   {!confirmAll?<button className="btn danger full" onClick={()=>setConfirmAll(true)}><Trash2 size={17}/>Apagar todos os meus dados</button>:
+    <div className="confirm-box" role="alertdialog" aria-label="Confirmar exclusão"><p>Isso apaga a dieta, favoritas, cardápio, lista, segurança e treinos de {p.profile.name}{p.sync==='nuvem'?' no banco e neste aparelho':' neste aparelho'}. Os dados do outro perfil não são tocados. Não dá para desfazer.</p><div className="row-actions"><button className="btn ghost" onClick={()=>setConfirmAll(false)}>Cancelar</button><button className="btn danger" onClick={async()=>{try{await p.eraseMine();setConfirmAll(false);done('Seus dados foram apagados.')}catch(e){done(e instanceof Error?e.message:'Não consegui apagar.')}}}>Apagar tudo</button></div></div>}
    {msg&&<p className="ok-note" role="status"><Check size={15}/>{msg}</p>}
   </section>
  </div>;

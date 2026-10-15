@@ -93,6 +93,14 @@ export const DISHES={
  caldo_feijao:'p5nzbk1782680889',vegetariano:'tvtxpq1511464705',lentilha:'wuxrtu1483564410',cafe:'c400ok1764439058',
  hamburguer:'44bzep1761848278',tacos:'uvuyxu1503067369',japones:'xxyupu1468262513',caseira:'fk80jp1763280767',
  marmita:'f0cdwk1782688162',batata:'1550441882',mandioca:'j223gc1784579841',lanche:'sl7cr91782588539',arroz_feijao:'ytogg31784397116',
+ // Usadas no catálogo de receitas: só quando o prato da foto é do mesmo tipo da receita.
+ banana_panqueca:'sywswr1511383814',omelete_simples:'yvpuuy1511797244',pao_ovo:'hqaejl1695738653',vitamina:'pjbaq11784731571',
+ mingau:'sng9bm1765320170',sopa_abobora:'1brbso1763585098',caldo_feijao_preto:'x0mreq1784577446',sopa_ervilha:'xxtsvx1511814083',
+ frango_ensopado:'sypxpx1515365095',carne_abobora:'k07k271782502861',estrogonofe:'svprys1511176755',peixe_vapor:'yx8j1i1763484612',
+ salada_atum:'yypwwq1511304979',salada_batata_doce:'z458v91763817681',espetinho:'3um6il1763794322',repolho_carne:'brmxra1782681940',
+ milho_cozido:'brhaoj1780086661',mousse_abacate:'uttuxy1511382180',bolo_cenoura:'h68o161782679437',banana_assada:'6v583k1780093743',
+ lombo:'cybyue1614349443',vagem_carne:'2ncui81784396094',pimentao_recheado:'b66myb1683207208',arroz_camarao:'sl6vqv1763335988',
+ camarao_grelhado:'jg4r991779916649',canja:'1529446352',macarrao_frango:'syqypv1486981727',almondegas:'8rfd4q1764112993',canelone:'wspuvp1511303478',
 } as const;
 export type DishKey=keyof typeof DISHES;
 export const DISH_KEYS=Object.keys(DISHES) as [DishKey,...DishKey[]];

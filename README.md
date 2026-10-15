@@ -1,6 +1,6 @@
 # NutriDuo Fit 💚
 
-PWA para duas pessoas decidirem o que comer: toque nos ingredientes, fotografe a geladeira ou fale o que tem, e receba ideias de refeições, inclusive uma receita única com porções para cada um ("Cozinhar para nós dois"). Interface em português, pensada para iPhone e instalável na tela de início.
+PWA de alimentação e atividade física para Ryan e Chrysalis. Cada pessoa tem seu próprio plano alimentar, receitas salvas, cardápio semanal e treinos; o modo "Cozinhar para nós dois" combina as preferências alimentares só quando é ligado. Interface em português, pensada para iPhone e instalável na tela de início.
 
 ## Rodar no computador
 
@@ -9,35 +9,34 @@ PWA para duas pessoas decidirem o que comer: toque nos ingredientes, fotografe a
 3. Copie `.env.example` para `.env.local` e preencha `OPENAI_API_KEY`. **Nunca coloque a chave no código do navegador.**
 4. `npm run dev` e abra `http://localhost:3000`.
 
-Checagens: `npm run lint` (TypeScript) e `npm run build`.
+Checagens: `npm run lint` (TypeScript), `npm test` (cálculo nutricional, catálogo, filtros, isolamento de perfis, segurança dos exercícios) e `npm run build`.
 
 ## Variáveis de ambiente (Vercel → Settings → Environment Variables)
 
 | Variável | Obrigatória | Para quê |
 |---|---|---|
-| `OPENAI_API_KEY` | sim | Sugestões, leitura de foto e transcrição de áudio. Sem ela o app mostra receitas do caderno próprio. |
-| `DATABASE_URL` | não | Neon Postgres. Com ela, perfis, favoritas, plano e lista sincronizam entre aparelhos. Sem ela, tudo fica salvo no aparelho. A Vercel preenche sozinha ao conectar o Neon em **Storage**. |
-| `APP_PASSWORD` | não | Trava opcional por aparelho (pedida uma vez, vale 180 dias). Recomendado se o link puder circular: protege os dados compartilhados e os créditos da IA. |
+| `OPENAI_API_KEY` | não | IA que escolhe e explica receitas, lê fotos e transcreve áudio. Sem ela, o app usa o catálogo com filtros determinísticos. |
+| `DATABASE_URL` | não | Neon Postgres: sincroniza os dados de cada pessoa entre aparelhos. **Só é usada com `APP_PASSWORD` configurada**; sem isso, tudo fica no aparelho. |
+| `APP_PASSWORD` | recomendada | Trava por aparelho (pedida uma vez, vale 180 dias). Protege os dados na nuvem e os créditos da IA. |
 | `AI_DAILY_LIMIT` / `AI_PER_MINUTE` | não | Controle de custo (padrão: 150 chamadas/dia, 8 por minuto por IP). |
-| `OPENAI_TEXT_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_TRANSCRIPTION_MODEL` | não | Troca de modelos. |
 
 ## Como funciona
 
-- **Entrada:** tela "Quem vai cozinhar hoje?" com dois cards. Um toque e entra, sem senha. A escolha fica salva no aparelho até tocar em "Trocar perfil" ou "Sair". Isso é conveniência de interface, **não** é segurança. Quem protege é a trava opcional `APP_PASSWORD`.
-- **Ingredientes:** galeria com fotos por categoria (com busca e itens personalizados), foto da geladeira (a imagem é reduzida no aparelho, analisada pela IA e descartada) e áudio (MediaRecorder com detecção de formato: `audio/mp4` no iPhone, `webm` no Android/Chrome). Foto e áudio só são enviados por ação explícita, e o resultado sempre passa por conferência.
-- **Sugestões:** `/api/suggest` valida tudo com Zod, trata as entradas como dados (proteção contra prompt injection), normaliza a resposta da IA e, se ela falhar, devolve receitas do caderno próprio (`lib/recipes.ts`) filtradas pelas restrições.
-- **Restrições:** preferência, intolerância, alergia e doença celíaca são tratadas de formas diferentes no prompt e no filtro do caderno.
-- **Dados:** tabela `app_state` (chave/valor JSON) e `ai_usage` (contador diário) no Neon, criadas automaticamente.
-- **Imagens:** fotos de ingredientes e pratos do [TheMealDB](https://www.themealdb.com), sempre marcadas como ilustrativas e com fallback visual.
+- **Perfis isolados:** cada dado pessoal é uma linha própria no banco (`pessoa1:diet`, `pessoa2:plan`…) e um cache próprio no aparelho. A API devolve só a pessoa pedida; no modo casal, o outro perfil entrega apenas preferências e restrições alimentares (nunca peso, observações, plano, favoritos ou treinos). A escolha de perfil por botão é conveniência, não autenticação: o que protege a nuvem é a `APP_PASSWORD`.
+- **Catálogo de receitas:** 150 receitas (30 cafés, 40 almoços, 30 lanches, 30 jantares, 20 sobremesas/pré e pós-treino), com ênfase em preparações do Nordeste. Ficam no servidor (`lib/recipes`) e chegam ao celular em páginas de 6.
+- **Nutrição determinística** (`lib/nutrition`): cada ingrediente aponta para um alimento do banco (TACO 4ª ed. para alimentos brasileiros, USDA FoodData Central quando necessário), medidas caseiras viram gramas por fatores documentados, os nutrientes são somados e divididos pelo rendimento. Peso da porção usa fatores médios de cozimento. Sem dado confiável, aparece "estimativa indisponível". A IA nunca gera números nutricionais.
+- **IA como curadora:** `/api/suggest` filtra candidatas no catálogo (horário, fome, intenção, restrições, ingredientes) e a IA só escolhe ids e explica. Receita inédita só é aceita se todos os ingredientes existirem no banco de alimentos, e é calculada pelo mesmo serviço.
+- **Exercícios** (`lib/exercises`): 32 exercícios com demonstração própria (figura em SVG com cinemática inversa: apoios no lugar certo), sessões de 10 a 45 min, protocolos adaptáveis de esteira e bicicleta. Antes de treinar, perguntas de segurança: sem liberação confirmada, só exercícios leves; em recuperação sem liberação, nenhum treino é montado (só organização de orientações e conteúdo educativo); limitações excluem as regiões marcadas.
+- **Privacidade:** fotos e áudios vão para a IA só por ação explícita e não são guardados. Dados de saúde pré-preenchidos de versões antigas são removidos por migração.
 
 ## Estrutura
 
-- `app/`: página, layout e rotas de API (`suggest`, `vision`, `transcribe`, `state`, `login`)
-- `components/`: telas e componentes visuais
-- `hooks/`: estado sincronizado, preferências do aparelho e gravação de áudio
-- `lib/`: tipos e validações (Zod), catálogo, normalização/migração, prompts, banco, limite de uso
-- `services/api.ts`: cliente das rotas
+- `app/`: página, layout e rotas (`suggest`, `recipes`, `recipes/[id]`, `plan`, `state`, `vision`, `transcribe`, `login`)
+- `components/`: telas (Início, Explorar, Minha Dieta, Exercícios, Planejar, Favoritos, Perfil) e componentes
+- `hooks/`: estado por pessoa, biblioteca paginada, preferências do aparelho, gravação de áudio
+- `lib/nutrition`, `lib/recipes`, `lib/exercises`: dados e regras de domínio (testados em `tests/`)
+- `lib/types.ts`: schemas Zod de perfil, plano, receitas, exercícios e sessões
 
 ## Aviso
 
-O NutriDuo é educativo e **não substitui nutricionista ou médico**. Não calcula calorias nem define metas de peso. Em caso de alergia ou doença celíaca, confira rótulos e o risco de contaminação cruzada.
+O NutriDuo é educativo e **não substitui nutricionista, médico ou educador físico**. Não define metas de peso nem de calorias. Valores nutricionais são estimativas a partir de tabelas de composição. Em caso de alergia ou doença celíaca, confira rótulos e o risco de contaminação cruzada.

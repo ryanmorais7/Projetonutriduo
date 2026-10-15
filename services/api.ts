@@ -1,4 +1,4 @@
-import type {StateKey,SuggestRequest,SuggestResponse} from '@/lib/types';
+import type {PersonId,PersonKey,PublicProfiles,RecipeDetailDTO,RecipeSearch,RecipeSearchResult,SuggestRequest,SuggestResponse,Suggestion} from '@/lib/types';
 
 export class ApiError extends Error{constructor(message:string,public status:number,public code?:string){super(message)}}
 
@@ -18,7 +18,11 @@ export const api={
  suggest:(body:SuggestRequest)=>call<SuggestResponse>('/api/suggest',jsonInit('POST',body)),
  vision:(image:string)=>call<{items:VisionItem[],warning:string}>('/api/vision',jsonInit('POST',{image})),
  transcribe:(blob:Blob)=>{const form=new FormData();form.append('audio',blob,blob.type.includes('mp4')?'fala.m4a':blob.type.includes('ogg')?'fala.ogg':'fala.webm');return call<{text:string}>('/api/transcribe',{method:'POST',body:form})},
- getState:()=>call<Partial<Record<StateKey,unknown>>>('/api/state'),
- putState:(patch:Partial<Record<StateKey,unknown>>)=>call<{ok:true}>('/api/state',jsonInit('PUT',patch)),
- deleteState:()=>call<{ok:true}>('/api/state',{method:'DELETE'}),
+ recipes:(search:RecipeSearch)=>call<RecipeSearchResult>('/api/recipes',jsonInit('POST',search)),
+ recipe:(id:string)=>call<RecipeDetailDTO>(`/api/recipes/${encodeURIComponent(id)}`,{cache:'default'}),
+ plan:(body:{slots:{key:string,meal:'cafe'|'almoco'|'lanche'|'jantar'}[],keep:string[],search:RecipeSearch,forWho:string,seed?:number})=>call<{entries:Record<string,Suggestion>}>('/api/plan',jsonInit('POST',body)),
+ getPerson:(id:PersonId)=>call<Partial<Record<PersonKey|'public',unknown>>>(`/api/state?person=${id}`),
+ getCouple:(id:PersonId)=>call<{diet:unknown}>(`/api/state?person=${id}&scope=couple`),
+ putState:(body:{person:PersonId,patch?:Partial<Record<PersonKey,unknown>>,public?:PublicProfiles})=>call<{ok:true}>('/api/state',jsonInit('PUT',body)),
+ deletePerson:(id:PersonId)=>call<{ok:true}>(`/api/state?person=${id}`,{method:'DELETE'}),
 };

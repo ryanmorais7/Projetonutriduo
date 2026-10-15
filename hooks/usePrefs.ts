@@ -6,8 +6,9 @@ import type {PersonId} from '@/lib/types';
 // A escolha de perfil é conveniência de interface, não autenticação.
 const KEY='nutriduo_prefs',OPEN_FLAG='nutriduo_opened';
 export type Theme='auto'|'claro'|'escuro';
-type Prefs={active:PersonId|null,askOnOpen:boolean,theme:Theme,couple:boolean};
-const DEFAULTS:Prefs={active:null,askOnOpen:false,theme:'auto',couple:true};
+// O modo casal começa desligado: só combina preferências quando alguém o ativa explicitamente.
+type Prefs={active:PersonId|null,askOnOpen:boolean,theme:Theme,couple:boolean,v?:number};
+const DEFAULTS:Prefs={active:null,askOnOpen:false,theme:'auto',couple:false,v:3};
 
 export function usePrefs(){
  const [prefs,setPrefs]=useState<Prefs>(DEFAULTS);
@@ -15,6 +16,7 @@ export function usePrefs(){
  useEffect(()=>{
   let p=DEFAULTS;
   try{const raw=JSON.parse(localStorage.getItem(KEY)||'{}');p={...DEFAULTS,...raw};if(p.active!=='pessoa1'&&p.active!=='pessoa2')p.active=null;
+   if(raw.v!==3)p={...p,couple:false,v:3}; // versões antigas vinham com o modo casal ligado por padrão
    // sessionStorage zera quando o sistema encerra o app; se o iOS só suspender, a escolha continua.
    if(p.askOnOpen&&!sessionStorage.getItem(OPEN_FLAG))p={...p,active:null};
   }catch{}
